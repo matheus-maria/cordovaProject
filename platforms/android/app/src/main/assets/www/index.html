@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>   
+    <head>
+       <script src="js/jquery-3.3.1.min.js"></script>
+       <script src="js/bootstrap.js"></script>
+       <script src="js/bootstrap.bundle.js"></script>
+       <script src="js/moment.min.js"></script>
+       <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+       <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+	   <meta charset="UTF-8">
+       <title>Climate</title>
+    </head>
+    <script>
+		$(document).ready(function() {      
+            pesquisaDias(1, 'auto:ip');            
+			$('[data-toggle="tooltip"]').tooltip();
+
+			$("#btnHoje").click(function() {
+                var nomeCidade = $("#vlPesquisaCidade").val(); 
+				$("#hiddenOption").val('1');
+                pesquisaDias(1, nomeCidade);                                                
+			});
+				
+			$("#btnTresDias").click(function() {				
+                var nomeCidade = $("#vlPesquisaCidade").val(); 
+				$("#hiddenOption").val('3');
+                pesquisaDias(3, nomeCidade);                             
+			});
+				
+			$("#btnSeteDias").click(function() {				
+                var nomeCidade = $("#vlPesquisaCidade").val(); 
+				$("#hiddenOption").val('7');
+                pesquisaDias(7, nomeCidade);
+			});                      
+                
+			$("#pesquisar-clima").click(function() {
+                var option = ($("#hiddenOption").val()===undefined?1:$("#hiddenOption").val()==''?'1':$("#hiddenOption").val());                                        
+                var nomeCidade = $("#vlPesquisaCidade").val();                 
+                pesquisaDias(option, nomeCidade);    
+            });                
+        });
+
+        function nomeDia(dataHora){
+            var numeroDia = moment(dataHora).day();
+            switch(numeroDia){
+                case 0: return 'Dom.';
+                case 1: return 'Seg.';
+                case 2: return 'Ter.';
+                case 3: return 'Qua.';
+                case 4: return 'Qui.';
+                case 5: return 'Sex.';
+                case 6: return 'Sab.';                
+            }
+            return 'errrou';
+        }
+
+        function uvColor(uv){
+            switch(parseInt(uv)){
+                case 1: case 2: return 'color: #33cc33;';
+
+                case 3: case 4: case 5: return 'color: #cccc00;';
+
+                case 6: case 7: return 'color: #ff9933;';
+
+                case 8: case 9: case 10: return 'color: #ff0000;';
+
+                default:
+                    if(uv >= 11) return 'color: #9933ff;';
+            }
+        }
+        
+        function pesquisaDias(numeroDias, nomeCidade){            
+            var key = "0ce35935b5fd4dd5a0305947191503";
+            //forecast.json
+            //var url = "http://api.apixu.com/v1/current.json?lang=pt&key="+key+"&q="+encodeURIComponent(nomeCidade);
+            var url = "http://api.apixu.com/v1/forecast.json?lang=pt&key="+key+"&q="+encodeURIComponent((nomeCidade===undefined?'auto:ip':nomeCidade==''?'auto:ip':nomeCidade))+"&days="+numeroDias;
+            $("#conteudo").html("Searching...");
+            $.ajax({
+                type: "GET",
+                url: url, 
+                contentType: "application/json",
+                dataType: 'json',
+                success: function(result) {
+                    console.log(result);
+                    var cidade = result.location.name.toString();
+                    var regiao = result.location.region.toString();
+                    var horaAtual = moment(result.location.localtime.toString()).format("DD/MM/YYYY HH:mm:ss");
+                    var tempAtual = result.current.temp_c.toString();
+                    var sensacaoTermica = result.current.feelslike_c.toString();
+                    var condicaoClimatica = result.current.condition.text.toString();
+                    var condicaoClimaticaIcone = result.current.condition.icon.toString();
+                    var output = "<div class='row'> ";
+                    
+                    var forecast = result.forecast.forecastday;
+                    $.each(forecast, function (key, value) {
+                        var maxTemp = value.day.maxtemp_c;
+                        var minTemp = value.day.mintemp_c;
+                        var precipitacaoTotal = value.day.totalprecip_mm;
+                        var vento = value.day.maxwind_kph;
+                        var uv = value.day.uv;
+                        var corUv = uvColor(uv);
+                        var dataHora = value.date;
+                        var dia = nomeDia(dataHora);
+                        var amanhacer = moment(value.astro.sunrise, 'h:mm A').format('HH:mm');
+                        var porDoSol = moment(value.astro.sunset, 'h:mm A').format('HH:mm');
+                        var condicaoClimatica = value.day.condition.text.toString();
+                        var condicaoClimaticaIcone = value.day.condition.icon.toString();                        
+
+                        output += " <div class='col-xs-12 col-sm-"+(numeroDias==1?12:4)+"'>\
+                                        <div class='card'> \
+                                            <div class='card-body'> \
+                                                <h5 class='card-title'> " + cidade + " - " + moment(dataHora, "YYYY-MM-DD HH:mm:ss").format("DD/MM") + " - " + dia + "</h5> \
+                                                <p class='card-text'>"+condicaoClimatica+"<img id='icone' src='http:"+condicaoClimaticaIcone+"'></p> \
+                                                <p class='card-text'>Precipitação "+precipitacaoTotal+"mm | Vento "+vento+" Km/h | <font style='"+corUv+"'> U.V "+ uv + " </font></p> \
+                                                <p class='card-text'>Máx "+maxTemp+" <code>&deg;</code>C | Min "+minTemp+" <code>&deg;</code>C | Atual "+tempAtual+" <code>&deg;</code>C</p> \
+                                                <p class='card-text'>Amanhecer "+amanhacer+"h | Por do sol "+porDoSol+"h </p> \
+                                            </div> \
+                                        </div> \
+                                    </div> ";
+                    });                                        
+                    output += "</div></div><br>";
+                                        
+                    
+                    $("#conteudo").html(output);
+
+                }
+            });                 
+        }        
+    </script>
+    <style>
+
+    </style>
+    <body style="background-color: white;">
+       <div class="app">
+            <img src="img/instagram_profile_image.png" style="margin-left: 2%;width: 150px;height: 150px;">
+			<div id="form" style="background-color: #f4f7f9;width: 100%;height: 20%; border-radius: 15px;">
+                <div> 
+                    <br/>
+                    <center>
+                        <h5>Pesquise pela previsão do tempo</h5>
+                    </center>   
+                </div>              
+             
+                <div class="input-group" style="width:80%;margin-bottom: 20px;">
+                    <input type="hidden" id="hiddenOption">
+                    <input type="text" class="form-control" id="vlPesquisaCidade" placeholder="Cidade" style="margin-left: 20%;" data-toggle="tooltip" data-placement="bottom" title="Digite a cidade">
+                    <span class="input-group-btn">
+                        <button id="pesquisar-clima" type="submit" class="btn btn-primary" style="margin-left: 15%;"><i class="fas fa-search"></i></button>
+                    </span>								
+                </div>
+			</div>
+           <br>
+           <div id="menu" class="text-center">
+                <div class="btn-group" role="group" aria-label="Menu">
+                    <button type="button" id="btnHoje" class="btn btn-info">Hoje</button>
+                    <button type="button" id="btnTresDias" class="btn btn-info">3 Dias</button>
+                    <button type="button" id="btnSeteDias" class="btn btn-info">7 Dias</button>                   
+                </div>           
+            </div>
+           <div id="conteudo" style="margin-top: 2%;margin-left: 2%;"  class="row"></div>
+        </div>
+    </body>
+    <footer>
+        <div style="color: #21252996">
+            <span>
+                <center>                    
+                    Faculdade de Tecnologia Termomecanica
+                </center>
+            </span>
+        </div>
+    </footer>    
+</html>
